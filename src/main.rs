@@ -1,16 +1,16 @@
-use std::fs::File;
 use std::io;
 use std::io::*;
-use std::path::Path;
 use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
+use std::fs::File;
+use std::path::Path; 
 
 macro_rules! update_timer {
     ( $receiver:expr ) => {
         *$receiver
             .try_iter()
-            .collect::<Vec<u32>>()
+            .collect::<Vec<usize>>()
             .last()
             .expect("Called last with None Value")
     };
@@ -21,15 +21,20 @@ struct Job {
     priority: usize,
     id: String,
     progress: usize,
-    arrival: usize,
+    total_required: usize,
+    arrival: usize
 }
 impl Job {
-    fn init(p: usize, id: String, arrival: usize) -> Job {
+    fn init(priority: usize, 
+        id: String, 
+        total_required: usize, 
+        arrival: usize) -> Job {
         Job {
-            priority: p,
+            priority,
             id,
             progress: 0,
-            arrival,
+            total_required,
+            arrival
         }
     }
     fn reset(mut self) {
@@ -42,39 +47,46 @@ impl Job {
 
 fn main() {
     // Job Array
-    let mut jobs: Vec<Job> = vec![];
-    let mut ts: Vec<Job> = vec![];
-    ts.push(Job::init(3, String::from("t1"), 0));
-    ts.push(Job::init(2, String::from("t2"), 0));
-    ts.push(Job::init(1, String::from("t3"), 0));
+    let mut jobs: Vec<Job> = vec![];    // the job vector for handling input stream
+    let mut ts: Vec<Job> = vec![];      // template jobs that we can clone from
+    ts.push(Job::init(3, String::from("t1"), 3, 0)); // T1 - shared buffer
+    ts.push(Job::init(2, String::from("t2"), 10, 0)); // T2
+    ts.push(Job::init(1, String::from("t3"), 3, 0)); // T3 - shared buffer
     // println!("{:?}", ts);
 
-    // TODO File I/O parsing jobs
-    let path = Path::new("input.txt");
-    let display = path.display();
-    let mut file = match File::open(&path) {
+    /* 
+    This program expects that the job stream will come from a 
+    file named input.txt where each job is on a new line and is in the form:
+    [unsigned integer > 0] [0 < unsigned integer < 4]\n
+    I have included a sample input.txt file in the project submission
+    */
+
+    let path = Path::new("input.txt");          // specify the path
+    let display = path.display();               // for error reporting purposes
+    let mut file = match File::open(&path) {    // attempt to open the file, if it fails tell us why
         Err(why_fail) => panic!("Could not open {}: {}", display, why_fail),
-        Ok(file) => file,
+        Ok(file) => file, 
     };
-    let mut buf = String::new();
-    let _ = file.read_to_string(&mut buf);
-    //println!("text:\n{}", buf);
-    let toks: Vec<&str> = buf.split("\n").collect();
-    for tok in &toks {
-        let subtok: Vec<&str> = tok.split_ascii_whitespace().collect();
-        println!("{:?}", subtok);
-        let arg1 = subtok[0].parse::<usize>().unwrap();
+    let mut buf = String::new();            // buffer for reading the lines of the file
+    let _ = file.read_to_string(&mut buf);  // read them c-style
+    //println!("text:\n{}", buf); 
+    let toks: Vec<&str> = buf.split("\n").collect(); // split on the newline
+    for tok in &toks {      // for each of those tokens
+        let subtok: Vec<&str> = tok.split_ascii_whitespace().collect(); // split once again on all whitespace
+        //println!("{:?}", subtok);     // for debugging
+        let arg1 = subtok[0].parse::<usize>().unwrap(); // convert the strings into unsigned integers
         let arg2 = subtok[1].parse::<usize>().unwrap();
-        let mut tmp: Job = ts[arg2 - 1].clone();
-        tmp.arrival = arg1;
-        jobs.push(tmp);
+        let mut tmp: Job = ts[arg2-1].clone();          // create our new job
+        tmp.arrival = arg1;                             // set its arrival time
+        jobs.push(tmp);                                 // push the new job
     }
-    println!("{:?}", jobs);
+    jobs.sort_by_key(|j| j.arrival); // sort the jobs based on their arrival time (just in case if you didn't)
+    //println!("{:?}", jobs); // debugging purposes
 
     // Timer stuff
     let (tx, rx) = mpsc::channel(); // create a new transmiter (tx) and receiver (rx)
     let _counter = thread::spawn(move || {
-        let mut x: u32 = 0;
+        let mut x: usize = 0;
         loop {
             x += 1; // increment our counter
             tx.send(x.clone()).unwrap(); // send the data off to the main thread
@@ -82,7 +94,16 @@ fn main() {
         }
     });
     thread::sleep(Duration::from_nanos(1000)); // wait a sec for the counter thread to spawn some values
-    let mut most_recent_time = update_timer!(rx);
+    
+    // Main program execution
+    let mut most_recent_time: usize = 0;
+    let mut active_job_queue: Vec<Job> = vec![];
+    while !jobs.is_empty() {
+        most_recent_time = update_timer!(rx);
+        if jobs[0].arrival == most_recent_time {
+            active_job_queue.push(jobs[0].clone());
+        }
 
-    // TODO Run the jobs n' stuff
+    }
+
 }
