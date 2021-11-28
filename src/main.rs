@@ -22,7 +22,8 @@ struct Job {
     id: String,
     progress: usize,
     total_required: usize,
-    arrival: usize
+    arrival: usize,
+    active: bool,
 }
 impl Job {
     fn init(priority: usize, 
@@ -34,7 +35,8 @@ impl Job {
             id,
             progress: 0,
             total_required,
-            arrival
+            arrival,
+            active: false
         }
     }
     fn reset(mut self) {
@@ -98,12 +100,25 @@ fn main() {
     // Main program execution
     let mut most_recent_time: usize = 0;
     let mut active_job_queue: Vec<Job> = vec![];
+    let mut prev_time: usize = 0;
     while !jobs.is_empty() {
-        most_recent_time = update_timer!(rx);
-        if jobs[0].arrival == most_recent_time {
-            active_job_queue.push(jobs[0].clone());
+        most_recent_time = update_timer!(rx);   // update the timer
+        if most_recent_time != prev_time {      // check for new tick
+            for i in 0..jobs.len() {                  // for each job
+                if most_recent_time == jobs[i].arrival { // check if it has arrived yet
+                    active_job_queue.push(jobs[i].clone()); // if it has push it into the active queue
+                }    
+            }
+            let mut highest_priority: usize = 0;
+            for i in 0..active_job_queue.len() {
+               if active_job_queue[highest_priority].priority < active_job_queue[i].priority {
+                   highest_priority = i;
+               }
+            }
+            active_job_queue[highest_priority].active = true;
+            
         }
-
+        prev_time = most_recent_time;
     }
 
 }
