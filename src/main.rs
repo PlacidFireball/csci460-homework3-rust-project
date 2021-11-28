@@ -1,5 +1,7 @@
+use std::fs::File;
 use std::io;
 use std::io::*;
+use std::path::Path;
 use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
@@ -19,13 +21,15 @@ struct Job {
     priority: usize,
     id: String,
     progress: usize,
+    arrival: usize,
 }
 impl Job {
-    fn init(p: usize, id: String) -> Job {
+    fn init(p: usize, id: String, arrival: usize) -> Job {
         Job {
             priority: p,
             id,
             progress: 0,
+            arrival,
         }
     }
     fn reset(mut self) {
@@ -38,13 +42,34 @@ impl Job {
 
 fn main() {
     // Job Array
+    let mut jobs: Vec<Job> = vec![];
     let mut ts: Vec<Job> = vec![];
-    ts.push(Job::init(3, String::from("t1")));
-    ts.push(Job::init(2, String::from("t2")));
-    ts.push(Job::init(1, String::from("t3")));
+    ts.push(Job::init(3, String::from("t1"), 0));
+    ts.push(Job::init(2, String::from("t2"), 0));
+    ts.push(Job::init(1, String::from("t3"), 0));
     // println!("{:?}", ts);
 
     // TODO File I/O parsing jobs
+    let path = Path::new("input.txt");
+    let display = path.display();
+    let mut file = match File::open(&path) {
+        Err(why_fail) => panic!("Could not open {}: {}", display, why_fail),
+        Ok(file) => file,
+    };
+    let mut buf = String::new();
+    let _ = file.read_to_string(&mut buf);
+    //println!("text:\n{}", buf);
+    let toks: Vec<&str> = buf.split("\n").collect();
+    for tok in &toks {
+        let subtok: Vec<&str> = tok.split_ascii_whitespace().collect();
+        println!("{:?}", subtok);
+        let arg1 = subtok[0].parse::<usize>().unwrap();
+        let arg2 = subtok[1].parse::<usize>().unwrap();
+        let mut tmp: Job = ts[arg2 - 1].clone();
+        tmp.arrival = arg1;
+        jobs.push(tmp);
+    }
+    println!("{:?}", jobs);
 
     // Timer stuff
     let (tx, rx) = mpsc::channel(); // create a new transmiter (tx) and receiver (rx)
