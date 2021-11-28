@@ -23,7 +23,7 @@ struct Job {
     progress: usize,
     total_required: usize,
     arrival: usize,
-    active: bool,
+    has_mutex: bool,
 }
 impl Job {
     fn init(priority: usize, 
@@ -36,7 +36,7 @@ impl Job {
             progress: 0,
             total_required,
             arrival,
-            active: false
+            has_mutex: false
         }
     }
     fn reset(mut self) {
@@ -99,8 +99,8 @@ fn main() {
     
     // Main program execution
     let mut most_recent_time: usize = 0;
-    let mut active_job_queue: Vec<Job> = vec![];
     let mut prev_time: usize = 0;
+    let mut active_job_queue: Vec<Job> = vec![];
     while !jobs.is_empty() {
         most_recent_time = update_timer!(rx);   // update the timer
         if most_recent_time != prev_time {      // check for new tick
@@ -110,12 +110,17 @@ fn main() {
                 }    
             }
             let mut highest_priority: usize = 0;
-            for i in 0..active_job_queue.len() {
+            
+            for i in 0..active_job_queue.len() {    // retrieve the highest priority task in the queue
                if active_job_queue[highest_priority].priority < active_job_queue[i].priority {
                    highest_priority = i;
                }
+               if active_job_queue[i].has_mutex {
+
+               }
             }
-            active_job_queue[highest_priority].active = true;
+            active_job_queue[highest_priority].has_mutex = true;
+            // TODO: introduce interaction between t1 and t3 via shared buffer
             
         }
         prev_time = most_recent_time;
