@@ -128,13 +128,14 @@ fn main() {
             thread::sleep(Duration::from_secs(1)); // sleep to hand off execution just in case
         }
     });
-    thread::sleep(Duration::from_nanos(1000)); // wait a sec for the counter thread to spawn some values
+    thread::sleep(Duration::from_nanos(10000000)); // wait a sec for the counter thread to spawn some values
     
     // Main program execution
     let mut most_recent_time: usize;
     let mut prev_time: usize = 0;
     let mut active_job_queue: Vec<Job> = vec![];
     while !jobs.is_empty() {
+        // TODO: update_timer! panics (most likely because there are no values in rx)
         most_recent_time = update_timer!(rx);   // update the timer
         if most_recent_time != prev_time {      // check for new tick
             for i in 0..jobs.len() {                  // for each job
