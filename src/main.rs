@@ -17,6 +17,38 @@ macro_rules! update_timer {
 }
 
 #[derive(Clone, Debug)]
+struct Buffer {
+    buf: String,
+    owner: String,
+}
+impl Buffer {
+    fn init(buf: String, owner: String) -> Buffer {
+        Buffer {
+            buf,
+            owner,
+        }
+    }
+    fn write_buffer(&mut self, append: &str, credentials: &String) -> bool {
+        if credentials.to_string().ne(&self.owner) {
+            false
+        }
+        else {
+            let _ = &self.buf.push_str(append);
+            true
+        }
+    }
+    fn set_owner(&mut self, new_owner: &String) {
+        self.owner = new_owner.to_string(); 
+    }
+    fn job_does_own(&self, credentials: &String) -> bool {
+        if credentials.to_string().eq(&self.owner) {
+            return true;
+        }
+        false
+    }
+}
+
+#[derive(Clone, Debug)]
 struct Job {
     priority: usize,
     id: String,
@@ -54,6 +86,8 @@ fn main() {
     ts.push(Job::init(3, String::from("t1"), 3, 0)); // T1 - shared buffer
     ts.push(Job::init(2, String::from("t2"), 10, 0)); // T2
     ts.push(Job::init(1, String::from("t3"), 3, 0)); // T3 - shared buffer
+    let mut buffer: Buffer = Buffer::init(String::new(), String::from("")); // the shared buffer
+    let mut t2_buffer: Buffer = Buffer::init(String::new(), String::from("")); // t2's buffer
     // println!("{:?}", ts);
 
     /* 
@@ -98,7 +132,7 @@ fn main() {
     thread::sleep(Duration::from_nanos(1000)); // wait a sec for the counter thread to spawn some values
     
     // Main program execution
-    let mut most_recent_time: usize = 0;
+    let mut most_recent_time: usize;
     let mut prev_time: usize = 0;
     let mut active_job_queue: Vec<Job> = vec![];
     while !jobs.is_empty() {
@@ -110,18 +144,55 @@ fn main() {
                 }    
             }
             let mut highest_priority: usize = 0;
-            
+            let mut jobs_attempting: Vec<usize> = vec![];
             for i in 0..active_job_queue.len() {    // retrieve the highest priority task in the queue
                if active_job_queue[highest_priority].priority < active_job_queue[i].priority {
                    highest_priority = i;
                }
                if active_job_queue[i].has_mutex {
-
+                   jobs_attempting.push(i);
                }
             }
-            active_job_queue[highest_priority].has_mutex = true;
+            // check if we are dealing with t1 or t3
+            if active_job_queue[highest_priority].id.ne("t2") {
+                active_job_queue[highest_priority].has_mutex = true;
+                jobs_attempting.push(highest_priority);
+            }
+            // check for t3 and t1 being highest priority (no contest)
+            if jobs_attempting.len() == 1 && active_job_queue[highest_priority].id.ne("t2") {
+                let owner_id = active_job_queue[highest_priority].id.clone();
+                buffer.set_owner(&owner_id); // set the new owner of the buffer
+                let append = match owner_id.clone().as_str(){
+                    "t1" => "1",
+                    "t2" => "2",
+                    "t3" => "3",
+                    _    => unreachable!(),
+                };
+                buffer.write_buffer(append, &owner_id);
+                active_job_queue[highest_priority].progress += 1;   // progress the job
+                // check for finish
+                if active_job_queue[highest_priority].progress == active_job_queue[highest_priority].total_required {
+                    println!("{}{}{}", owner_id, buffer.buf, owner_id);
+                    active_job_queue.remove(highest_priority); 
+                }
+            }
+            // otherwise we are dealing with t2
+            else if jobs_attempting.len() == 1 {
+                let owner_id = active_job_queue[highest_priority].id.clone();
+                active_job_queue[highest_priority].progress += 1;
+                t2_buffer.set_owner(&owner_id);
+                t2_buffer.write_buffer("2", &owner_id); 
+                if active_job_queue[highest_priority].progress == active_job_queue[highest_priority].total_required {
+                    println!("{}{}{}", owner_id, buffer.buf, owner_id);
+                    active_job_queue.remove(highest_priority); 
+                }
+            }
+            // the buffer is contested and t3 has the buffer
+            else if jobs_attempting.len() > 1 && buffer.job_does_own(&"t3".to_string()) {
+                
+            }
             // TODO: introduce interaction between t1 and t3 via shared buffer
-            
+            // almost done :)
         }
         prev_time = most_recent_time;
     }
