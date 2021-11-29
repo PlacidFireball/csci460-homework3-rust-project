@@ -1,4 +1,3 @@
-use std::io;
 use std::io::*;
 use std::sync::mpsc;
 use std::thread;
@@ -74,7 +73,7 @@ impl Job {
     fn reset(mut self) {
         self.progress = 0;
     }
-    fn progress(mut self) {
+    fn progress(&mut self) {
         self.progress += 1;
     }
 }
@@ -160,26 +159,26 @@ fn main() {
             }
             // check for t3 and t1 being highest priority (no contest)
             if jobs_attempting.len() == 1 && active_job_queue[highest_priority].id.ne("t2") {
-                let owner_id = active_job_queue[highest_priority].id.clone();
-                buffer.set_owner(&owner_id); // set the new owner of the buffer
+                let owner_id = active_job_queue[highest_priority].id.clone();   // retrieve owner id
+                buffer.set_owner(&owner_id);    // set the new owner of the buffer
                 let append = match owner_id.clone().as_str(){
                     "t1" => "1",
-                    "t2" => "2",
+                    "t2" => unreachable!(),
                     "t3" => "3",
                     _    => unreachable!(),
                 };
                 buffer.write_buffer(append, &owner_id);
-                active_job_queue[highest_priority].progress += 1;   // progress the job
+                active_job_queue[highest_priority].progress();   // progress the job
                 // check for finish
                 if active_job_queue[highest_priority].progress == active_job_queue[highest_priority].total_required {
-                    println!("{}{}{}", owner_id, buffer.buf, owner_id);
+                    println!("time {}: {}{}{}", active_job_queue[highest_priority].arrival, owner_id, buffer.buf, owner_id); 
                     active_job_queue.remove(highest_priority); 
                 }
             }
             // otherwise we are dealing with t2
             else if jobs_attempting.len() == 1 {
                 let owner_id = active_job_queue[highest_priority].id.clone();
-                active_job_queue[highest_priority].progress += 1;
+                active_job_queue[highest_priority].progress();
                 t2_buffer.set_owner(&owner_id);
                 t2_buffer.write_buffer("2", &owner_id); 
                 if active_job_queue[highest_priority].progress == active_job_queue[highest_priority].total_required {
@@ -191,8 +190,10 @@ fn main() {
             else if jobs_attempting.len() > 1 && buffer.job_does_own(&"t3".to_string()) {
                 
             }
-            // TODO: introduce interaction between t1 and t3 via shared buffer
-            // almost done :)
+            // the buffer is contested and t1 has the buffer 
+            else if jobs_attempting.len() > 1 && buffer.job_does_own(&"t1".to_string()) {
+
+            }
         }
         prev_time = most_recent_time;
     }
