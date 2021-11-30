@@ -35,7 +35,7 @@ impl Buffer {
     fn free_buffer(&mut self) {
         self.owner = "".to_string();
         self.is_owned = false;
-        self.buf = "".to_string();
+        self.buf = "000".to_string();
     }
 
     // checks if a job owns the buffer, returns true if it does, false if not
@@ -89,7 +89,7 @@ fn main() {
     ts.push(Job::init(3, String::from("t1"), 3, 0));    // T1 - uses shared buffer
     ts.push(Job::init(2, String::from("t2"), 10, 0));   // T2
     ts.push(Job::init(1, String::from("t3"), 3, 0));    // T3 - uses shared buffer
-    let mut buffer: Buffer = Buffer::init(String::new(), String::from("")); // the shared buffer
+    let mut buffer: Buffer = Buffer::init(String::new(), String::from("000")); // the shared buffer
 
     /*
     This program expects that the job stream will come from a
@@ -104,7 +104,7 @@ fn main() {
     I have included a sample input.txt file in the project submission
     */
 
-    let path = Path::new("input.txt"); // specify the path
+    let path = Path::new("input1.txt"); // specify the path
     let display = path.display(); // for error reporting purposes
     let mut file = match File::open(&path) {
         // attempt to open the file, if it fails tell us why
@@ -113,6 +113,7 @@ fn main() {
     };
     let mut buf = String::new();                        // buffer for reading the lines of the file
     let _ = file.read_to_string(&mut buf);              // read them in c-style
+    //println!("{}", buf); // display contents of file to stdout
     let toks: Vec<&str> = buf.split("\n").collect();    // split the string on the on the newline
     for tok in &toks {
         // for each of those tokens
@@ -130,6 +131,8 @@ fn main() {
     let mut active_job_queue: Vec<Job> = vec![];    // vector for jobs that have arrived and need to be worked on
     // Main loop
     while most_recent_time < 10000 {
+        // TODO: Implement jobs displaying how much progress they made on preemption
+        //let mut last_running_job: String = String::from("");
         for i in 0..jobs.len() {                        // for each job
             if most_recent_time == jobs[i].arrival {    // check if it has arrived yet
                 active_job_queue.push(jobs[i].clone()); // if it has, push it into the active queue
