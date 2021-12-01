@@ -12,7 +12,7 @@ $ rustc main.rs
 $ ./main
 NOTE: the program expects input.txt to be in the same directory as the executable
 NOTE: to see the structure of how the text file should be structured, refer to 
-line 175 of this file for instructions.
+line 171 of this file for instructions.
 
 Also, I am aware of the bug where some messages will be written to stdout not 
 in chronological order, I didn't have time to fix it, but the program is still correct.
@@ -31,11 +31,6 @@ Explanation:
     t3 runs to completion, allows t1 to execute and all is well
 
 */
-
-
-
-
-
 
 // includes
 use std::fs::File;
